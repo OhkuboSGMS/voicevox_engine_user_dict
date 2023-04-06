@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-# TODO: import from voicevox_engine.synthesis_engine.mora
+# TODO: import from voicevox_engine_user_dict.synthesis_engine.mora
 from voicevox_engine.synthesis_engine.synthesis_engine_base import mora_to_text
 
 
