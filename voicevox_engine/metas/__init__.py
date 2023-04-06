@@ -1,6 +1,5 @@
-from . import Metas, MetasStore
+from . import Metas
 
 __all__ = [
     "Metas",
-    "MetasStore",
 ]
