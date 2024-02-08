@@ -39,7 +39,7 @@ authors = ["Hiroshiba <hihokaruta@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "~3.8,>=3.8.1"
-pydantic = "^1.10.7"
+pydantic = "^2.0.0"
 
 [tool.poetry.group.dev.dependencies]
 cython = "^0.29.24"

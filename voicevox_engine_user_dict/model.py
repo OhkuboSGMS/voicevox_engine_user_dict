@@ -2,9 +2,10 @@ from enum import Enum
 from re import findall, fullmatch
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, Field, conint, validator
+from pydantic import field_validator, ConfigDict, BaseModel, Field, validator
 
 from .metas.Metas import Speaker, SpeakerInfo
+from typing_extensions import Annotated
 
 
 class Mora(BaseModel):
@@ -13,8 +14,8 @@ class Mora(BaseModel):
     """
 
     text: str = Field(title="文字")
-    consonant: Optional[str] = Field(title="子音の音素")
-    consonant_length: Optional[float] = Field(title="子音の音長")
+    consonant: Optional[str] = Field(None, title="子音の音素")
+    consonant_length: Optional[float] = Field(None, title="子音の音長")
     vowel: str = Field(title="母音の音素")
     vowel_length: float = Field(title="母音の音長")
     pitch: float = Field(title="音高")  # デフォルト値をつけるとts側のOpenAPIで生成されたコードの型がOptionalになる
@@ -34,7 +35,7 @@ class AccentPhrase(BaseModel):
 
     moras: List[Mora] = Field(title="モーラのリスト")
     accent: int = Field(title="アクセント箇所")
-    pause_mora: Optional[Mora] = Field(title="後ろに無音を付けるかどうか")
+    pause_mora: Optional[Mora] = Field(None, title="後ろに無音を付けるかどうか")
     is_interrogative: bool = Field(default=False, title="疑問系かどうか")
 
     def __hash__(self):
@@ -59,7 +60,7 @@ class AudioQuery(BaseModel):
     postPhonemeLength: float = Field(title="音声の後の無音時間")
     outputSamplingRate: int = Field(title="音声データの出力サンプリングレート")
     outputStereo: bool = Field(title="音声データをステレオ出力するか否か")
-    kana: Optional[str] = Field(title="[読み取り専用]AquesTalkライクな読み仮名。音声合成クエリとしては無視される")
+    kana: Optional[str] = Field(None, title="[読み取り専用]AquesTalkライクな読み仮名。音声合成クエリとしては無視される")
 
     def __hash__(self):
         items = [
@@ -151,7 +152,7 @@ class UserDictWord(BaseModel):
     """
 
     surface: str = Field(title="表層形")
-    priority: conint(ge=USER_DICT_MIN_PRIORITY, le=USER_DICT_MAX_PRIORITY) = Field(
+    priority: Annotated[int, Field(ge=USER_DICT_MIN_PRIORITY, le=USER_DICT_MAX_PRIORITY)] = Field(
         title="優先度"
     )
     context_id: int = Field(title="文脈ID", default=1348)
@@ -165,13 +166,12 @@ class UserDictWord(BaseModel):
     yomi: str = Field(title="読み")
     pronunciation: str = Field(title="発音")
     accent_type: int = Field(title="アクセント型")
-    mora_count: Optional[int] = Field(title="モーラ数")
+    mora_count: Optional[int] = Field(None, title="モーラ数")
     accent_associative_rule: str = Field(title="アクセント結合規則")
+    model_config = ConfigDict(validate_assignment=True)
 
-    class Config:
-        validate_assignment = True
-
-    @validator("surface")
+    @field_validator("surface")
+    @classmethod
     def convert_to_zenkaku(cls, surface):
         return surface.translate(
             str.maketrans(
@@ -180,7 +180,8 @@ class UserDictWord(BaseModel):
             )
         )
 
-    @validator("pronunciation", pre=True)
+    @field_validator("pronunciation", mode="before")
+    @classmethod
     def check_is_katakana(cls, pronunciation):
         if not fullmatch(r"[ァ-ヴー]+", pronunciation):
             raise ValueError("発音は有効なカタカナでなくてはいけません。")
@@ -202,6 +203,8 @@ class UserDictWord(BaseModel):
                     raise ValueError("無効な発音です。(「くゎ」「ぐゎ」以外の「ゎ」の使用)")
         return pronunciation
 
+    # TODO[pydantic]: We couldn't refactor the `validator`, please replace it by `field_validator` manually.
+    # Check https://docs.pydantic.dev/dev-v2/migration/#changes-to-validators for more information.
     @validator("mora_count", pre=True, always=True)
     def check_mora_count_and_accent_type(cls, mora_count, values):
         if "pronunciation" not in values or "accent_type" not in values:
